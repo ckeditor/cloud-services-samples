@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple example of storage feature</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="https://c.cksource.com/a/1/logos/ckeditor5.png">
+
+    <link href="styles.css" rel="stylesheet" type="text/css">
+    <link href="configuration-dialogs/configuration-dialogs.css" rel="stylesheet" type="text/css">
+
+    <script src="configuration-dialogs/storage-dialog.js"></script>
+</head>
+<body>
+    <div class="buttons-wrapper">
+        <p>
+            Before you start ensure you have enabled the <em>documents storage feature option</em> in the <strong>CKEditor Ecosystem customer dashboard.</strong><br>
+            For the first open the developer console. Then upload the editor by clicking the <strong>Upload editor bundle</strong> button.<br>
+            Next, open the editor and create a few documents with some content. Every document should have a unique <em>document ID</em>.<br>
+            Finally, get the list of documents by clicking the <strong>Get documents list</strong> button.<br>
+            To see a document's content provide a <em>document ID</em> and click the <strong>Get document content</strong> button. <br>
+            To delete a document provide a <em>document ID</em> and use the <strong>Delete document</strong> button.
+        </p>
+        <button id="upload">Upload editor bundle</button>
+        <button id="get-list">Get documents list</button>
+        <button id="get-document-content">Get document content</button>
+        <button id="delete-document">Delete document</button>
+    </div>
+    <div class="document-id-wrapper">
+        <label for="document-id">Provide a document ID</label>
+        <input type="text" id="document-id">
+    </div>
+    <div class="result-container">
+        <div>
+            <h1>Documents list</h1>
+            <div id="documents-list"></div>
+        </div>
+        <div>
+            <h1>Current document content <span id="current-document-id"></span></h1>
+            <div id="document-content"></div>
+        </div>
+    </div>
+    <script>
+	    /* globals storageDialog */
+	    const APPLICATION_URL = 'http://localhost:8000';
+
+	    const uploadButton = document.getElementById( 'upload' );
+	    const getDocumentsListButton = document.getElementById( 'get-list' );
+	    const getDocumentContentButton = document.getElementById( 'get-document-content' );
+	    const deleteDocumentButton = document.getElementById( 'delete-document' );
+	    const currentDocumentIdElement = document.getElementById( 'current-document-id' );
+	    const documentContentElement = document.getElementById( 'document-content' );
+	    const documentsListElement = document.getElementById( 'documents-list' );
+	    const documentIdInput = document.getElementById( 'document-id' );
+
+	    storageDialog().then( ( { environmentId, organizationId, bundleVersion } ) => {
+	    	// Uploads the editor bundle.
+		    uploadButton.addEventListener( 'click', async function( evt ) {
+			    evt.preventDefault();
+
+			    try {
+				    const response = await fetch( `${ APPLICATION_URL }/upload-editor`, {
+					    method: 'POST',
+					    headers: {
+						    'Content-Type': 'application/json'
+					    },
+					    body: JSON.stringify( { environmentId, organizationId, bundleVersion } )
+				    } );
+
+				    const data = await response.json();
+
+				    console.log( 'Result of uploading editor:', data );
+			    } catch ( error ) {
+				    console.log( 'Error occurred:', error );
+			    }
+		    }, { once: true } );
+
+		    // Gets a list of documents.
+		    getDocumentsListButton.addEventListener( 'click', async function( evt ) {
+			    evt.preventDefault();
+
+			    await getDocumentsList( organizationId, environmentId );
+		    } );
+
+		    // Gets a single document's content.
+		    getDocumentContentButton.addEventListener( 'click', async evt => {
+			    evt.preventDefault();
+
+			    const documentId = documentIdInput.value;
+			    currentDocumentIdElement.innerHTML = '';
+			    documentContentElement.innerHTML = '';
+
+			    if ( !documentId ) {
+			    	return;
+                }
+
+			    try {
+				    const url = `${ APPLICATION_URL }/documents/${ documentId }?organizationId=${ organizationId }&environmentId=${ environmentId }`;
+
+				    const response = await fetch( url );
+
+				    const { data, status } = await response.json();
+
+				    if ( status === 404 ) {
+					    console.log( 'Document does not exist. Status:', status );
+					    return;
+                    }
+
+				    documentContentElement.innerHTML = data;
+				    currentDocumentIdElement.textContent = `( ${ documentId } )`;
+
+				    console.log( 'Document\'s content fetched successfully. Status:', status );
+			    } catch ( error ) {
+				    console.log( 'Error occurred:', error );
+			    }
+		    } );
+
+		    // Deletes a single document.
+		    deleteDocumentButton.addEventListener( 'click', async evt => {
+			    evt.preventDefault();
+
+			    const documentId = documentIdInput.value;
+
+			    if ( !documentId ) {
+				    return;
+			    }
+
+			    try {
+				    const { status } = await fetch( `${ APPLICATION_URL }/documents/${ documentId }?organizationId=${ organizationId }&environmentId=${ environmentId }`, {
+					    method: 'DELETE'
+				    } );
+
+				    await getDocumentsList( organizationId, environmentId );
+				    console.log( 'Request status:', status );
+			    } catch ( error ) {
+				    console.log( 'Error occurred:', error );
+			    }
+		    } );
+	    } );
+
+	    async function getDocumentsList( organizationId, environmentId ) {
+		    try {
+			    documentsListElement.innerHTML = '';
+
+			    const url = `${ APPLICATION_URL }/documents?organizationId=${ organizationId }&environmentId=${ environmentId }`;
+
+			    const response = await fetch( url );
+
+			    const { data } = await response.json();
+
+			    const listElement = document.createElement( 'ol' );
+
+			    for ( const item of data.data ) {
+			    	const listItemElement = document.createElement( 'li' );
+			    	listItemElement.textContent = item.id;
+			    	listElement.appendChild( listItemElement )
+                }
+
+			    documentsListElement.appendChild( listElement );
+
+			    console.log( 'Documents list fetched successfully.' );
+		    } catch ( error ) {
+			    console.log( 'Error occurred:', error );
+		    }
+        }
+    </script>
+</body>
+</html>

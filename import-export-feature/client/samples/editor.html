@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<!--
+Copyright (c) 2003-2020, CKSource - Frederico Knabben. All rights reserved.
+This file is licensed under the terms of the MIT License (see LICENSE.md).
+-->
+<html lang="en">
+<head>
+	<title>CKEditor 5 collaborative editing in classic editor</title>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" type="image/png" href="https://c.cksource.com/a/1/logos/ckeditor5.png">
+
+	<link href="styles.css" rel="stylesheet" type="text/css">
+	<link href="configuration-dialogs/configuration-dialogs.css" rel="stylesheet" type="text/css">
+
+	<script src="configuration-dialogs/editor-dialog.js"></script>
+	<script src="../build/editor.js"></script>
+</head>
+<body>
+<header>
+	<div class="centered">
+		<h1>
+			<a href="https://ckeditor.com/ckeditor-5/" target="_blank" rel="noopener noreferrer">
+				<img src="https://c.cksource.com/a/1/logos/ckeditor5.svg" alt="CKEditor 5 logo" /> CKEditor 5
+			</a>
+		</h1>
+
+		<nav>
+			<ul>
+				<li><a href="https://ckeditor.com/docs/cs/latest/guides/overview.html"
+						target="_blank" rel="noopener noreferrer">Documentation</a></li>
+				<li><a href="https://ckeditor.com/ckeditor-cloud-services/" target="_blank"
+						rel="noopener noreferrer">Website</a></li>
+			</ul>
+		</nav>
+	</div>
+</header>
+
+<main>
+	<div class="message">
+		<div class="centered">
+			<h2>CKEditor Cloud Services import/export feature sample</h2>
+			<p>Use the editor to collaborate and create a document to export.</p>
+		</div>
+	</div>
+
+	<div class="centered">
+		<div class="row row-presence">
+			<div class="presence"></div>
+		</div>
+		<div class="row">
+			<div class="editor"></div>
+			<div class="sidebar"></div>
+		</div>
+	</div>
+</main>
+
+<footer>
+	<div class="centered">
+		<p><a href="https://ckeditor.com/ckeditor-5/" target="_blank" rel="noopener">CKEditor 5</a> – Rich text
+			editor of tomorrow, available today</p>
+		<p>Copyright © 2003-2020, <a href="https://cksource.com/" target="_blank" rel="noopener">CKSource</a> –
+			Frederico
+			Knabben. All rights reserved.</p>
+	</div>
+</footer>
+
+<script>
+	/* globals editorDialog CKEditorCS */
+
+	// Configuration data needed to initialize the editor is available only after the configuration dialog
+	// is submitted, hence the editor is initialized inside a promise returned by `editorDialog()`.
+	editorDialog().then( ( { tokenUrl, uploadUrl, webSocketUrl, documentId, bundleVersion } ) => {
+		return CKEditorCS.create( document.querySelector( '.editor' ), {
+			cloudServices: {
+				tokenUrl,
+				uploadUrl,
+				webSocketUrl,
+				bundleVersion
+			},
+			collaboration: {
+				channelId: documentId,
+			},
+			sidebar: {
+				container: document.querySelector( '.sidebar' )
+			},
+			presenceList: {
+				container: document.querySelector( '.presence' )
+			}
+		} ).then( editor => {
+			const annotations = editor.plugins.get( 'Annotations' );
+			const sidebarElement = document.querySelector( '.sidebar' );
+
+			// Prevent closing the tab when any action is pending.
+			editor.ui.view.listenTo( window, 'beforeunload', ( evt, domEvt ) => {
+				if ( editor.plugins.get( 'PendingActions' ).hasAny ) {
+					domEvt.preventDefault();
+					domEvt.returnValue = true;
+				}
+			} );
+
+			// Switch between inline, narrow sidebar and wide sidebar according to the window size.
+			editor.ui.view.listenTo( window, 'resize', refreshDisplayMode );
+			refreshDisplayMode();
+
+			function refreshDisplayMode() {
+				if ( window.innerWidth < 1070 ) {
+					sidebarElement.classList.remove( 'narrow' );
+					sidebarElement.classList.add( 'hidden' );
+					annotations.switchTo( 'inline' );
+				}
+				else if ( window.innerWidth < 1300 ) {
+					sidebarElement.classList.remove( 'hidden' );
+					sidebarElement.classList.add( 'narrow' );
+					annotations.switchTo( 'narrowSidebar' );
+				}
+				else {
+					sidebarElement.classList.remove( 'hidden', 'narrow' );
+					annotations.switchTo( 'wideSidebar' );
+				}
+			}
+
+			return editor;
+		} );
+	} );
+</script>
+</body>
+</html>

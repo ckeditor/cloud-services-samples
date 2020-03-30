@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple example of import/export feature</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="https://c.cksource.com/a/1/logos/ckeditor5.png">
+
+    <link href="styles.css" rel="stylesheet" type="text/css">
+    <link href="configuration-dialogs/configuration-dialogs.css" rel="stylesheet" type="text/css">
+
+    <script src="configuration-dialogs/import-export-dialog.js"></script>
+</head>
+<body>
+    <div class="buttons-wrapper">
+        <p>
+            For the first open the developer console. <br>
+            Then upload the editor by clicking the <strong>Upload editor bundle</strong> button
+            and import editor data using the <strong>Import editor data</strong> button. <br>
+            Open the editor, add some changes and click the <strong>Export editor data</strong> button to export content.
+        </p>
+        <button id="upload">Upload editor bundle</button>
+        <button id="import">Import editor data</button>
+        <button id="export">Export editor data</button>
+    </div>
+    <div class="import-content-wrapper">
+        <label for="content">Provide content to import</label>
+        <textarea id="content">Lorem ipsum dolor sit amet</textarea>
+    </div>
+    <div class="result-container">
+        <div>
+            <h1>Raw HTML content</h1>
+            <div id="raw-html"></div>
+        </div>
+        <div>
+            <h1>Injected HTML content</h1>
+            <div id="injected-html"></div>
+        </div>
+    </div>
+    <script>
+	    /* globals importExportDialog */
+        const APPLICATION_URL = 'http://localhost:8000';
+
+	    const uploadButton = document.getElementById( 'upload' );
+	    const importButton = document.getElementById( 'import' );
+	    const exportButton = document.getElementById( 'export' );
+	    const contentElement = document.getElementById( 'content' );
+	    const rawHTMLElement = document.getElementById( 'raw-html' );
+	    const injectedHTMLElement = document.getElementById( 'injected-html' );
+
+	    importExportDialog().then( ( { environmentId, organizationId, documentId, bundleVersion } ) => {
+		    // Uploads the editor bundle.
+		    uploadButton.addEventListener( 'click', async evt => {
+			    evt.preventDefault();
+
+			    try {
+				    const response = await fetch( `${ APPLICATION_URL }/upload-editor`, {
+					    method: 'POST',
+					    headers: {
+						    'Content-Type': 'application/json'
+					    },
+					    body: JSON.stringify( { environmentId, organizationId, bundleVersion } )
+				    } );
+
+				    const data = await response.json();
+
+				    console.log( 'Result of uploading editor:', data );
+			    } catch ( error ) {
+				    console.log( 'Error occurred:', error );
+			    }
+		    }, { once: true } );
+
+		    // Imports a document.
+		    importButton.addEventListener( 'click', async evt =>  {
+			    evt.preventDefault();
+
+			    try {
+				    await fetch( `${ APPLICATION_URL }/import`, {
+					    method: 'POST',
+					    headers: {
+						    'Content-Type': 'application/json'
+					    },
+					    body: JSON.stringify( {
+						    environmentId,
+						    organizationId,
+						    documentId,
+						    editorContent: contentElement.value,
+                            bundleVersion
+					    } )
+				    } );
+
+				    console.log( 'Data imported successfully.' );
+                } catch ( error ) {
+				    console.log( 'Error occurred:', error );
+                }
+		    }, { once: true } );
+
+		    // Exports a document.
+		    exportButton.addEventListener( 'click', async evt => {
+			    evt.preventDefault();
+
+			    try {
+				    const url = `${ APPLICATION_URL }/export?organizationId=${ organizationId }&environmentId=${ environmentId }&documentId=${ documentId }`;
+
+				    const response = await fetch( url );
+
+				    const { data } = await response.json();
+
+				    rawHTMLElement.textContent = data;
+				    injectedHTMLElement.innerHTML = data;
+			    } catch ( error ) {
+				    console.log( 'Error occurred:', error );
+			    }
+		    } );
+	    } );
+    </script>
+</body>
+</html>
